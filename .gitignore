@@ -1,3 +1,5 @@
 config.js
 output/*
+!output/.gitkeep
 node_modules
+.idea

@@ -24,6 +24,16 @@ class BambooApp {
     #geocoder;
 
     /**
+     * @type {string}
+     */
+    #outputDir = 'output';
+
+    /**
+     * @type {string}
+     */
+    #employeesFile = 'employees.json';
+
+    /**
      * Constructor
      */
     constructor(bambooKey, bambooDomain) {
@@ -36,16 +46,11 @@ class BambooApp {
 
     async run() {
         // Attempt to load records from cache.
-        // const employeesFile = '';
-        // fs.access(`../output/${employeesFile}`, () => {
-        //     this._writeFile(employeesFile, '[]');
-        // });
-
-        let loadedRecords = require('../output/employees.json');
+        let loadedRecords = await this.loadEmployeeFile();
 
         // If there was no file or it was empty, get data from bamboo.
         if (loadedRecords.length === 0) {
-            console.log('Loading employees from Bamboo...')
+            console.log('Loading employees from Bamboo...');
 
             // Load all employees from the directory.
             const directoryRecords = await this.#bambooApi.getEmployeeDir();
@@ -74,6 +79,29 @@ class BambooApp {
 
         // Create the report grouped by country and province.
         this.createGroupedReport(loadedRecords);
+    }
+
+    /**
+     * Load the contents of the Employees file or create it if it doesn't exist.
+     * @returns {Promise<void>}
+     */
+    async loadEmployeeFile() {
+        const _this = this;
+        const filepath = `${this.#outputDir}/${this.#employeesFile}`;
+
+        return new Promise((resolve, reject) => {
+            fs.stat(filepath, async (err, stat) => {
+                if (err == null) {
+                    resolve(require('../'+filepath));
+                } else if (err.code === 'ENOENT') {
+                    let result = await _this._writeFile(_this.#employeesFile, '[]');
+                    resolve([]);
+                } else {
+                    console.log('Error in employees file: ', err.code);
+                    reject(err);
+                }
+            });
+        });
     }
 
     /**
@@ -198,13 +226,34 @@ class BambooApp {
         return group;
     }
 
-    _writeFile(file, data) {
-        fs.writeFile(`./output/${file}`, data, (err) => {
-            if (err) {
-                 console.error(err);
-                 process.exit(1);
-            }
-            console.log(`⭐️ File ${file} written.`);
+    /**
+     * Write a file to the output folder.
+     * @param file
+     * @param data
+     * @returns {Promise<unknown>}
+     * @private
+     */
+    async _writeFile(file, data) {
+        const filepath = `${this.#outputDir}/${file}`;
+
+        // fs.writeFile(filepath, data, (err) => {
+        //     console.log('here');
+        //     if (err) {
+        //         throw err;
+        //     }
+        //     console.log(`⭐️ File ${file} written.`);
+        // });
+
+        return new Promise((resolve, reject) => {
+            fs.writeFile(filepath, data, (err) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    console.log(`⭐️ File ${file} written.`);
+                    resolve(true);
+                }
+            });
         });
     }
 }
